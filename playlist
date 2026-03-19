@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>LangitorenPlayer</title>
+<style>
+  html,body{margin:0;padding:0;background:transparent;overflow:hidden;}
+</style>
+</head>
+<body>
+<script>
+(function(){
+  var PLAYLISTS=[
+    {
+      id:'banwoldang',title:'\uBC18\uC6D4\uB2F9',emoji:'\uD83C\uAFEE',
+      tracks:[
+        {title:'\uB2E8\uBA85',src:'https://res.cloudinary.com/dlorej4sr/video/upload/v1773803579/1.%EB%8B%A8%EB%AA%85_%EB%B0%98%EC%9B%94%EB%8B%B9%EC%9D%98_%EA%B8%B0%EB%AC%98%ED%95%9C_%EC%9D%B4%EC%95%BC%EA%B8%B0_vef6gu.mp3'},
+        {title:'\uC0C1\uC0AC\uD654',src:'https://res.cloudinary.com/dlorej4sr/video/upload/v1773803579/2.%EC%83%81%EC%82%AC%ED%99%94-%EB%B0%98%EC%9B%94%EB%8B%B9%EC%9D%98_%EA%B8%B0%EB%AC%98%ED%95%9C_%EC%9D%B4%EC%95%BC%EA%B8%B0_bdjh1c.mp3'},
+        {title:'\uD48D\uB839\uAC00',src:'https://res.cloudinary.com/dlorej4sr/video/upload/v1773803582/3.%ED%92%8D%EB%A0%B9%EA%B0%80-%EB%B0%98%EC%9B%94%EB%8B%B9%EC%9D%98_%EA%B8%B0%EB%AC%98%ED%95%9C_%EC%9D%B4%EC%95%BC%EA%B8%B0.com_eiubqa.mp3'},
+        {title:'\uBBF8\uB828\uD55C \uACE0\uBC31\uC5F0\uC2B5',src:'https://res.cloudinary.com/dlorej4sr/video/upload/v1773803575/4.%E1%84%87%E1%85%A1%E1%86%AB%E1%84%8B%E1%85%AF%E1%86%AF%E1%84%83%E1%85%A1%E1%86%BC%E1%84%8B%E1%85%B4_%E1%84%80%E1%85%B5%E1%84%86%E1%85%AD%E1%84%92%E1%85%A1%E1%86%AB_%E1%84%8B%E1%85%B5%E1%84%8B%E1%85%A3%E1%84%80%E1%85%B5_-_%E1%84%86%E1%85%B5%E1%84%85%E1%85%A7%E1%86%AB%E1%84%92%E1%85%A1%E1%86%AB_%E1%84%80%E1%85%A9%E1%84%87%E1%85%A2%E1%86%A8%E1%84%8B%E1%85%A7%E1%86%AB%E1%84%89%E1%85%B3%E1%86%B8_zeonqy.mp3'},
+        {title:'\uB124\uAC00 \uC788\uC5B4\uC11C \uD589\uBCF5\uD574',src:'https://res.cloudinary.com/dlorej4sr/video/upload/v1773803579/5.%EB%84%A4%EA%B0%80_%EC%9E%88%EC%96%B4%EC%84%9C_%ED%96%89%EB%B3%B5%ED%95%B4_Happy_to_Have_You_-_cv.%EA%B9%80%EB%AA%85%EC%A4%80_%EC%84%B1%EC%98%88%EC%9B%90_hxj62b.mp3'},
+        {title:'\uAC00\uB137',src:'https://res.cloudinary.com/dlorej4sr/video/upload/v1773803582/6.%EC%84%A4%EB%A0%88%EC%9E%84_-_%EA%B0%80%EB%84%B7_-_%EC%B5%9C%EC%A2%85%EB%B9%88_q4flcb.mp3'},
+        {title:'\uBC9A\uAF43\uC758\uBE44',src:'https://res.cloudinary.com/dlorej4sr/video/upload/v1773803584/7.%EB%B2%9A%EA%BD%83%EC%9D%98%EB%B9%84_-_%EC%84%A4%EB%A0%88%EC%9E%84_%EC%9A%94%EC%9D%B4_%ED%83%80%EB%9D%BC%EB%A7%9B%EC%8A%A4_-_%EA%B9%80%EC%84%B8%EC%A7%84_cgk9z7.mp3'}
+      ]
+    }
+  ];
+
+  var KEY='lo_player_v1';
+  var S={plId:null,idx:0,playing:false,progress:0,shuffle:false,repeat:false,stopped:false};
+
+  function lS(){try{var r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r));}catch(e){}}
+  function sS(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+  lS();
+
+  function gPl(id){return PLAYLISTS.find(function(p){return p.id===id;})||null;}
+  function gTr(){return CUR?CUR.tracks[S.idx]:null;}
+
+  var CUR=S.plId?gPl(S.plId):null;
+  var AUD=new Audio();
+  AUD.volume=0.85;
+  var metaReady=false;
+  var pendingPlay=false;
+  var demoT=null;
+  var demoF=S.progress;
+
+  /* ---- helpers ---- */
+  function fmt(s){
+    if(!isFinite(s)||isNaN(s)||s<0)return'0:00';
+    s=Math.floor(s);
+    return Math.floor(s/60)+':'+(''+(s%60)).padStart(2,'0');
+  }
+
+  function stopDemo(){clearInterval(demoT);demoT=null;}
+
+  function startDemo(){
+    stopDemo();
+    demoT=setInterval(function(){
+      if(!CUR)return;
+      demoF+=0.35;
+      if(demoF>=100){demoF=0;advTrack(1);return;}
+      S.progress=demoF;sS();
+      post('timeupdate',{progress:S.progress,cur:'0:00',dur:'0:00'});
+    },1000);
+  }
+
+  /* ---- audio events ---- */
+  AUD.addEventListener('loadedmetadata',function(){
+    metaReady=true;
+    if(S.progress>0&&AUD.duration&&isFinite(AUD.duration)){
+      AUD.currentTime=(S.progress/100)*AUD.duration;
+    }
+    sendState();
+  });
+
+  AUD.addEventListener('canplay',function(){
+    if(pendingPlay){pendingPlay=false;AUD.play().catch(function(){startDemo();});}
+  });
+
+  AUD.addEventListener('timeupdate',function(){
+    if(!AUD.duration||!isFinite(AUD.duration))return;
+    S.progress=(AUD.currentTime/AUD.duration)*100;
+    demoF=S.progress;
+    sS();
+    var dur=AUD.duration;
+    post('timeupdate',{
+      progress:S.progress,
+      cur:fmt(AUD.currentTime),
+      dur:fmt(dur)
+    });
+  });
+
+  AUD.addEventListener('ended',function(){advTrack(1);});
+  AUD.addEventListener('error',function(){
+    post('error',{});
+    startDemo();
+  });
+
+  /* ---- core ---- */
+  function loadTrack(idx,ap){
+    if(!CUR||!CUR.tracks[idx])return;
+    stopDemo();AUD.pause();
+    metaReady=false;
+    AUD.src=CUR.tracks[idx].src||'';
+    AUD.load();
+    pendingPlay=ap;
+    sendState();
+  }
+
+  function doPlay(){
+    S.playing=true;S.stopped=false;
+    AUD.play().catch(function(){startDemo();});
+    sS();sendState();
+  }
+
+  function doPause(){
+    S.playing=false;
+    AUD.pause();stopDemo();
+    pendingPlay=false;
+    sS();sendState();
+  }
+
+  function doStop(){
+    S.playing=false;S.stopped=true;S.progress=0;
+    demoF=0;
+    AUD.pause();AUD.currentTime=0;stopDemo();
+    pendingPlay=false;
+    sS();sendState();
+  }
+
+  function advTrack(d){
+    S.progress=0;demoF=0;
+    var n=CUR.tracks.length;
+    if(S.repeat){}
+    else if(S.shuffle){var r;do{r=Math.floor(Math.random()*n);}while(r===S.idx&&n>1);S.idx=r;}
+    else{S.idx=(S.idx+d+n)%n;}
+    loadTrack(S.idx,S.playing);
+    sS();sendState();
+  }
+
+  function selectPlaylist(id){
+    var pl=gPl(id);if(!pl)return;
+    var sw=S.plId!==id;
+    CUR=pl;
+    if(sw){S.plId=id;S.idx=0;S.progress=0;S.playing=false;S.stopped=false;demoF=0;}
+    loadTrack(S.idx,false);
+    sS();
+    post('playlists',buildPlData());
+    sendState();
+  }
+
+  function selectTrack(idx){
+    if(!CUR)return;
+    S.idx=idx;S.progress=0;demoF=0;S.stopped=false;
+    loadTrack(idx,true);
+    S.playing=true;
+    sS();sendState();
+  }
+
+  function seekTo(pct){
+    S.progress=pct;demoF=pct;
+    if(AUD.duration&&isFinite(AUD.duration)){
+      AUD.currentTime=(pct/100)*AUD.duration;
+    }
+    sS();
+  }
+
+  /* ---- postMessage to parent ---- */
+  function post(type,data){
+    try{
+      window.parent.postMessage(JSON.stringify(Object.assign({type:type},data)),'*');
+    }catch(e){}
+  }
+
+  function buildPlData(){
+    return PLAYLISTS.map(function(pl){
+      return {
+        id:pl.id,title:pl.title,emoji:pl.emoji,
+        count:pl.tracks.length,
+        active:S.plId===pl.id
+      };
+    });
+  }
+
+  function buildTrData(){
+    if(!CUR)return[];
+    return CUR.tracks.map(function(t,i){
+      return{idx:i,title:t.title,active:i===S.idx};
+    });
+  }
+
+  function sendState(){
+    var tr=gTr();
+    post('state',{
+      playing:S.playing,
+      stopped:S.stopped,
+      shuffle:S.shuffle,
+      repeat:S.repeat,
+      progress:S.progress,
+      plId:S.plId,
+      plTitle:CUR?CUR.title:'',
+      plEmoji:CUR?CUR.emoji:'',
+      idx:S.idx,
+      trackTitle:tr?tr.title:'',
+      cur:AUD.duration&&isFinite(AUD.duration)?fmt(AUD.currentTime):'0:00',
+      dur:AUD.duration&&isFinite(AUD.duration)?fmt(AUD.duration):'0:00',
+      playlists:buildPlData(),
+      tracks:buildTrData()
+    });
+  }
+
+  /* ---- receive commands from parent ---- */
+  window.addEventListener('message',function(e){
+    var d;
+    try{d=JSON.parse(e.data);}catch(err){return;}
+    switch(d.cmd){
+      case'play':    doPlay();break;
+      case'pause':   doPause();break;
+      case'stop':    doStop();break;
+      case'prev':    if(CUR){S.stopped=false;advTrack(-1);}break;
+      case'next':    if(CUR){S.stopped=false;advTrack(1);}break;
+      case'shuffle': S.shuffle=!S.shuffle;sS();sendState();break;
+      case'repeat':  S.repeat=!S.repeat;sS();sendState();break;
+      case'seek':    seekTo(parseFloat(d.value)||0);break;
+      case'selPl':   selectPlaylist(d.id);break;
+      case'selTr':   selectTrack(parseInt(d.idx,10));break;
+      case'getState':sendState();post('playlists',{list:buildPlData()});break;
+    }
+  });
+
+  /* ---- boot: restore state ---- */
+  if(CUR){
+    demoF=S.progress;
+    pendingPlay=(S.playing&&!S.stopped);
+    AUD.src=CUR.tracks[S.idx].src||'';
+    AUD.load();
+    if(S.playing&&!S.stopped){
+      document.getElementById('mwb-icon') // just init audio
+    }
+  }
+
+  /* Signal ready */
+  window.addEventListener('load',function(){
+    post('ready',{playlists:buildPlData()});
+    sendState();
+  });
+
+})();
+</script>
+</body>
+</html>
