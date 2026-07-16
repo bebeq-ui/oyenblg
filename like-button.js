@@ -1,10 +1,13 @@
 const buttonLikedb = {
   databaseURL: "https://langitorenlikebutton-default-rtdb.asia-southeast1.firebasedatabase.app/",
 };
-firebase.initializeApp(buttonLikedb);
-// Ambil referensi database Firebase
-const dblikes = firebase.database();
-// URL Database Firebase
+var _likeApp;
+try {
+  _likeApp = firebase.app("likeButtonApp");
+} catch (e) {
+  _likeApp = firebase.initializeApp(buttonLikedb, "likeButtonApp");
+}
+const dblikes = firebase.database(_likeApp);
 const Credit_hirutshuji = "Hirutshuji";
 const nilaiLike = 1; //angka bertambah Likes tiap diclick
 
