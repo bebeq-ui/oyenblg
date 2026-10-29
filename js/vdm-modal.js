@@ -64,7 +64,7 @@
         '<p style="text-align:center;color:#ef4444;font-size:0.8rem">&#9888; ' + msg + '</p>';
     }
 
-    // ── Fetch file dari worker /download lalu trigger download ──
+    // ── Minta tiket 60 detik ke worker, lalu download via /download?t= ──
     
     function triggerDownload(volKey, format, btn) {
       var origHtml = btn.innerHTML;
@@ -78,32 +78,32 @@
           if (typeof window.openLockPopup === 'function') window.openLockPopup('Download Volume');
           return;
         }
-        
-        user.getIdToken(false).then(function(idToken) {
+
           var r2Key = volKey + '.' + format;
-          var dlUrl = WORKER_URL + '/download'
-            + '?key='   + encodeURIComponent(r2Key)
-            + '&token=' + encodeURIComponent(idToken);
 
-          // Kembalikan tombol ke state awal
-          btn.disabled = false; 
-          btn.innerHTML = origHtml;
-          
-          // Tutup modal agar UI terlihat bersih saat proses download dimulai
-          closeVolDownload();
-
-          // TRIGGER DOWNLOAD BAWAAN BROWSER
-          var a = document.createElement('a');
-          a.href = dlUrl;
-          a.target = '_blank'; 
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-
-        }).catch(function(err) {
-          btn.disabled = false; btn.innerHTML = origHtml;
-          setModalError('Gagal memproses token: ' + err.message);
-        });
+          user.getIdToken(false).then(function(idToken) {
+            return fetch(WORKER_URL + '/download/ticket?key=' + encodeURIComponent(r2Key), {
+              headers: { 'Authorization': 'Bearer ' + idToken }
+            });
+          }).then(function(res) {
+            return res.json();
+          }).then(function(d) {
+            btn.disabled = false; btn.innerHTML = origHtml;
+            if (!d || !d.ok) {
+              setModalError((d && d.message) || 'Akses ditolak / file belum tersedia.');
+              return;
+            }
+            closeVolDownload();
+            var a = document.createElement('a');
+            a.href = d.url;          // URL tiket 60 detik, bukan link Drive
+            a.download = '';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }).catch(function(err) {
+            btn.disabled = false; btn.innerHTML = origHtml;
+            setModalError('Gagal memproses: ' + err.message);
+          });
       });
     }
 
