@@ -1,6 +1,5 @@
-/* langitoren: video-player.js VERSION v3-debug (anime player: Drive proxy + multi-subtitle CC)
+/* langitoren: video-player.js (anime player: Drive proxy + multi-subtitle CC)
    Dimuat di halaman post. Aktif hanya jika ada <div id="video-reader">; key dibaca dari #video-src (isi post) atau data-vkey.
-   Debug: tambahkan ?vpdebug=1 atau #vpdebug di URL halaman episode.
    Update: edit file ini di GitHub lalu purge https://purge.jsdelivr.net/gh/bebeq-ui/oyenblg@main/js/video-player.js */
 (function(){
   var root=document.getElementById('video-reader');
@@ -53,9 +52,6 @@
 @keyframes vpfb{0%{opacity:0;transform:scale(.8)}20%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.05)}}
 .vp-2x{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);padding:4px 12px;border-radius:99px;font-size:12px;z-index:6;display:none;pointer-events:none}
 .vp.hold2x .vp-2x{display:block}
-
-.vp-note{position:absolute;left:8px;right:8px;bottom:64px;z-index:7;display:none;background:rgba(0,0,0,.78);border:1px solid rgba(255,255,255,.25);border-radius:6px;padding:6px 10px;font-size:12px;line-height:1.35}
-.vp-hud{position:absolute;left:4px;top:4px;z-index:8;display:none;background:rgba(0,0,0,.7);color:#7dff9c;font:11px/1.3 monospace;padding:3px 6px;border-radius:4px;pointer-events:none;max-width:95%;word-break:break-all}
 `;document.head.appendChild(st);}
   var API='https://oyenwibhuk.langitoren00.workers.dev';
   var KEY_RE=/anime\/[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9._-]*\.mp4/i;
@@ -74,7 +70,7 @@
   var key=findKey();
   var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
 
-  root.innerHTML='<div class="vp-note"></div><div class="vp-hud"></div><div class="vp-fb l"></div><div class="vp-fb r"></div><div class="vp-2x">2x &#9654;&#9654;</div><div class="vp-msg"></div><div class="vp-spin"></div><button class="vp-big" type="button" aria-label="Play">&#9654;</button>'+
+  root.innerHTML='<div class="vp-fb l"></div><div class="vp-fb r"></div><div class="vp-2x">2x &#9654;&#9654;</div><div class="vp-msg"></div><div class="vp-spin"></div><button class="vp-big" type="button" aria-label="Play">&#9654;</button>'+
   '<button class="vp-skip" type="button">Skip +85s &#9654;&#9654;</button>'+
   '<div class="vp-menu" data-m="cc"></div><div class="vp-menu" data-m="spd"></div>'+
   '<div class="vp-ctl"><div class="vp-bar"><i></i><i class="vp-buf"></i><i class="vp-played"></i><b></b><span class="vp-tip">0:00</span></div>'+
@@ -87,7 +83,6 @@
   '<button class="vp-pip" type="button" title="Picture in Picture">&#10064;</button><button class="vp-fs" type="button" title="Fullscreen (F)">&#9974;</button></div></div>';
 
   function $(s){return root.querySelector(s)}
-  var note=$('.vp-note'),hud=$('.vp-hud');
   var msg=$('.vp-msg'),big=$('.vp-big'),bar=$('.vp-bar'),buf=$('.vp-buf'),played=$('.vp-played'),knob=$('.vp-bar b'),tip=$('.vp-tip'),
       pp=$('.vp-pp'),mute=$('.vp-mute'),vol=$('.vp-vol'),timeEl=$('.vp-time'),nextBtn=$('.vp-next'),ccBtn=$('.vp-cc'),spdBtn=$('.vp-spd'),
       ccMenu=$('[data-m=cc]'),spdMenu=$('[data-m=spd]'),skipBtn=$('.vp-skip');
@@ -105,23 +100,7 @@
 
   if(!/^anime\/[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9._-]*\.mp4$/i.test(key)){showMsg('Video belum tersedia (key tidak valid'+(key?': '+key:' - isi postingan kosong')+').');return;}
 
-  var wd=null,stallT=null;
-  function setNote(t){note.textContent=t||'';note.style.display=t?'block':'none'}
-  function probe(toMsg){
-    if(!tok.url) return;
-    var ctl=window.AbortController?new AbortController():null;
-    fetch(tok.url,{headers:{Range:'bytes=0-1'},cache:'no-store',signal:ctl?ctl.signal:undefined}).then(function(r){
-      var ct=r.headers.get('content-type')||'',st=r.status;
-      if(ctl&&(st===206||st===200)) ctl.abort();
-      var out;
-      if(st===206||st===200) out='Server video merespons ('+st+', '+ct+') tapi data tidak mengalir. Coba koneksi lain atau cek ukuran/format file.';
-      else out='Server video menolak: HTTP '+st;
-      if(st!==206&&st!==200&&/json/.test(ct)){ return r.json().then(function(j){out+=' ('+(j&&j.reason||'?')+')';done(out)},function(){done(out)}); }
-      done(out);
-    }).catch(function(e){ if(e&&e.name==='AbortError')return; done('Tidak bisa menghubungi server video: '+(e&&e.message||'error')); });
-    function done(t){ if(toMsg){msg.textContent=msg.textContent+' ['+t+']'} else setNote(t); }
-  }
-  var tok={exp:0,subs:[],url:''},fetching=null,retries=0,resumeAt=0,wasPlaying=false;
+  var tok={exp:0,subs:[],url:''},fetching=null,retries=0,resumeAt=0,wasPlaying=false,tokenTime=0;
   function getToken(){
     if(fetching) return fetching;
     fetching=fetch(API+'/video/token?key='+encodeURIComponent(key),{cache:'no-store'})
@@ -131,11 +110,11 @@
         if(!o.j||!o.j.ok){
           var e=new Error(o.j&&o.j.reason||'error');e.status=o.s;throw e;
         }
-        tok=o.j;return tok;
+        tok=o.j; tokenTime=Date.now(); return tok;
       },function(e){fetching=null;throw e;});
     return fetching;
   }
-  function fresh(){return tok.url&&Date.now()<tok.exp-120000}
+  function fresh(){return tok.url && (Date.now() - tokenTime) < (6 * 3600 * 1000 - 120000);}
 
   var subPref=LS.get('vp_sub');
   function buildTracks(){
@@ -197,8 +176,6 @@
       v.src=tok.url;
       buildTracks();
       v.load();
-      clearTimeout(wd);
-      wd=setTimeout(function(){if(v.readyState===0&&!v.error)showMsg('Video lama merespons. Periksa koneksi, atau coba muat ulang halaman.')},25000);
     }).catch(function(e){
       if(e.status===404) showMsg('Video belum tersedia.');
       else if(e.status===403) showMsg('Akses ditolak. Buka lewat situs resmi.');
@@ -213,15 +190,13 @@
     if(s&&isFinite(s)) try{v.currentTime=s}catch(e){}
     var sp=parseFloat(LS.get('vp_spd'));if(sp&&SPEEDS.indexOf(sp)!==-1)v.playbackRate=sp;
     var vo=parseFloat(LS.get('vp_vol'));if(isFinite(vo)){v.volume=Math.min(1,Math.max(0,vo));vol.value=v.volume}
-    renderSpd();retries=0;
-    if(!wasPlaying)root.classList.remove('loading');
+    renderSpd();
     if(wasPlaying){v.play().catch(function(){});wasPlaying=false}
     updTime();
   });
-  v.addEventListener('waiting',function(){if(!v.paused)root.classList.add('loading')});
-  v.addEventListener('loadeddata',function(){if(v.paused)root.classList.remove('loading')});
+  v.addEventListener('waiting',function(){root.classList.add('loading')});
   v.addEventListener('canplay',function(){root.classList.remove('loading')});
-  v.addEventListener('playing',function(){clearTimeout(stallT);setNote('');root.classList.remove('loading');root.classList.add('playing');pp.innerHTML='&#10074;&#10074;';kick()});
+  v.addEventListener('playing',function(){root.classList.remove('loading');root.classList.add('playing');pp.innerHTML='&#10074;&#10074;';kick();retries=0;});
   v.addEventListener('pause',function(){root.classList.remove('playing');pp.innerHTML='&#9654;';root.classList.remove('hide-ui');savePos()});
   v.addEventListener('ended',function(){
     LS.del('vp_pos_'+key);
@@ -230,10 +205,7 @@
   });
   v.addEventListener('error',function(){
     // token kedaluwarsa / koneksi putus -> ambil token baru lalu lanjutkan dari posisi terakhir
-    if(retries>=3){
-      var c=v.error?v.error.code:0;
-      showMsg('Video tidak bisa diputar (kode '+c+'). Mungkin kuota Drive habis atau format tidak didukung (gunakan MP4 H.264/AAC).');
-      probe(true);return}
+    if(retries>=3){showMsg('Video tidak bisa diputar. Mungkin kuota Drive habis atau format tidak didukung (gunakan MP4 H.264/AAC).');return}
     retries++;
     var at=v.currentTime||resumeAt||0,was=!v.paused||wasPlaying;
     tok.exp=0;
@@ -245,10 +217,6 @@
     load(at,was);
   }
   v.addEventListener('play',ensureFresh);
-  v.addEventListener('play',function(){
-    clearTimeout(stallT);
-    stallT=setTimeout(function(){ if(!v.paused&&v.readyState<3){setNote('Memuat video terasa lama… memeriksa server');probe(false)} },12000);
-  });
   v.addEventListener('seeking',ensureFresh);
 
   function updTime(){
@@ -332,7 +300,6 @@
     }else{
       lastTap=now;
       tapTimer=setTimeout(function(){
-        if(v.paused){toggle();return}
         root.classList.toggle('hide-ui');if(!root.classList.contains('hide-ui'))kick();
       },320);
     }
@@ -415,19 +382,6 @@
       try{ms.setPositionState({duration:v.duration,playbackRate:v.playbackRate||1,position:Math.min(v.currentTime,v.duration)})}catch(e){}
     });
   })();
-
-  var VP_VER='v3-debug';
-  window.__vpVersion=VP_VER;
-  var dbgOn=/vpdebug/.test(location.search+location.hash);
-  try{if(localStorage.getItem('vp_debug')==='1')dbgOn=true}catch(e){}
-  if(dbgOn){
-    hud.style.display='block';var lastEv='';
-    ['loadstart','loadedmetadata','loadeddata','canplay','canplaythrough','playing','waiting','stalled','suspend','abort','error','seeking','seeked','ended'].forEach(function(n){v.addEventListener(n,function(){lastEv=n})});
-    setInterval(function(){
-      var b='';try{for(var i=0;i<v.buffered.length;i++)b+=v.buffered.start(i).toFixed(0)+'-'+v.buffered.end(i).toFixed(0)+' '}catch(e){}
-      hud.textContent=VP_VER+' rs='+v.readyState+' ns='+v.networkState+' t='+v.currentTime.toFixed(1)+'/'+(v.duration||0).toFixed(0)+' buf='+b+' err='+(v.error?v.error.code:'-')+' ev='+lastEv+' rt='+retries;
-    },500);
-  }
 
   load(0,false);
 })();
