@@ -1,5 +1,5 @@
 /* langitoren: video-player.js (anime player: Drive proxy + multi-subtitle CC)
-   Dimuat di halaman post. Aktif hanya jika ada <div id="video-reader" data-vkey="anime/slug/ep.mp4">.
+   Dimuat di halaman post. Aktif hanya jika ada <div id="video-reader">; key dibaca dari #video-src (isi post) atau data-vkey.
    Update: edit file ini di GitHub lalu purge https://purge.jsdelivr.net/gh/bebeq-ui/oyenblg@main/js/video-player.js */
 (function(){
   var root=document.getElementById('video-reader');
@@ -54,7 +54,20 @@
 .vp.hold2x .vp-2x{display:block}
 `;document.head.appendChild(st);}
   var API='https://oyenwibhuk.langitoren00.workers.dev';
-  var key=(root.getAttribute('data-vkey')||'').replace(/ /g,' ').trim().split(/\s+/)[0]||'';
+  var KEY_RE=/anime\/[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9._-]*\.mp4/i;
+  function findKey(){
+    var srcs=[];
+    var b=document.getElementById('video-src');
+    if(b) srcs.push(b.textContent||'');
+    srcs.push(root.getAttribute('data-vkey')||'');
+    for(var i=0;i<srcs.length;i++){
+      var t=srcs[i].replace(/[ ​]/g,' ').replace(/&nbsp;/g,' ');
+      var m=t.match(KEY_RE);
+      if(m) return m[0];
+    }
+    return (srcs[0]||srcs[1]||'').replace(/\s+/g,' ').trim().slice(0,60);
+  }
+  var key=findKey();
   var LS={get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},del:function(k){try{localStorage.removeItem(k)}catch(e){}}};
 
   root.innerHTML='<div class="vp-fb l"></div><div class="vp-fb r"></div><div class="vp-2x">2x &#9654;&#9654;</div><div class="vp-msg"></div><div class="vp-spin"></div><button class="vp-big" type="button" aria-label="Play">&#9654;</button>'+
@@ -85,7 +98,7 @@
   function showMsg(t){msg.textContent=t;msg.classList.add('show');root.classList.remove('loading')}
   function hideMsg(){msg.classList.remove('show')}
 
-  if(!/^anime\/[^\s]+\.mp4$/i.test(key)){showMsg('Video belum tersedia (key tidak valid).');return;}
+  if(!/^anime\/[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9._-]*\.mp4$/i.test(key)){showMsg('Video belum tersedia (key tidak valid'+(key?': '+key:' - isi postingan kosong')+').');return;}
 
   var tok={exp:0,subs:[],url:''},fetching=null,retries=0,resumeAt=0,wasPlaying=false;
   function getToken(){
