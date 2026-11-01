@@ -100,6 +100,7 @@
 
   if(!/^anime\/[a-z0-9][a-z0-9-]*\/[a-z0-9][a-z0-9._-]*\.mp4$/i.test(key)){showMsg('Video belum tersedia (key tidak valid'+(key?': '+key:' - isi postingan kosong')+').');return;}
 
+  var wd=null;
   var tok={exp:0,subs:[],url:''},fetching=null,retries=0,resumeAt=0,wasPlaying=false;
   function getToken(){
     if(fetching) return fetching;
@@ -176,6 +177,8 @@
       v.src=tok.url;
       buildTracks();
       v.load();
+      clearTimeout(wd);
+      wd=setTimeout(function(){if(v.readyState===0&&!v.error)showMsg('Video lama merespons. Periksa koneksi, atau coba muat ulang halaman.')},25000);
     }).catch(function(e){
       if(e.status===404) showMsg('Video belum tersedia.');
       else if(e.status===403) showMsg('Akses ditolak. Buka lewat situs resmi.');
@@ -191,10 +194,12 @@
     var sp=parseFloat(LS.get('vp_spd'));if(sp&&SPEEDS.indexOf(sp)!==-1)v.playbackRate=sp;
     var vo=parseFloat(LS.get('vp_vol'));if(isFinite(vo)){v.volume=Math.min(1,Math.max(0,vo));vol.value=v.volume}
     renderSpd();retries=0;
+    if(!wasPlaying)root.classList.remove('loading');
     if(wasPlaying){v.play().catch(function(){});wasPlaying=false}
     updTime();
   });
-  v.addEventListener('waiting',function(){root.classList.add('loading')});
+  v.addEventListener('waiting',function(){if(!v.paused)root.classList.add('loading')});
+  v.addEventListener('loadeddata',function(){if(v.paused)root.classList.remove('loading')});
   v.addEventListener('canplay',function(){root.classList.remove('loading')});
   v.addEventListener('playing',function(){root.classList.remove('loading');root.classList.add('playing');pp.innerHTML='&#10074;&#10074;';kick()});
   v.addEventListener('pause',function(){root.classList.remove('playing');pp.innerHTML='&#9654;';root.classList.remove('hide-ui');savePos()});
