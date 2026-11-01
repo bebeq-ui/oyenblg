@@ -1,6 +1,6 @@
-/* langitoren: video-player.js (anime player: Drive proxy + multi-subtitle CC)
+/* langitoren: video-player.js VERSION v3-debug (anime player: Drive proxy + multi-subtitle CC)
    Dimuat di halaman post. Aktif hanya jika ada <div id="video-reader">; key dibaca dari #video-src (isi post) atau data-vkey.
-   Debug: tambahkan ?vpdebug=1 di URL halaman episode.
+   Debug: tambahkan ?vpdebug=1 atau #vpdebug di URL halaman episode.
    Update: edit file ini di GitHub lalu purge https://purge.jsdelivr.net/gh/bebeq-ui/oyenblg@main/js/video-player.js */
 (function(){
   var root=document.getElementById('video-reader');
@@ -416,12 +416,16 @@
     });
   })();
 
-  if(/[?&]vpdebug=1/.test(location.search)){
+  var VP_VER='v3-debug';
+  window.__vpVersion=VP_VER;
+  var dbgOn=/vpdebug/.test(location.search+location.hash);
+  try{if(localStorage.getItem('vp_debug')==='1')dbgOn=true}catch(e){}
+  if(dbgOn){
     hud.style.display='block';var lastEv='';
     ['loadstart','loadedmetadata','loadeddata','canplay','canplaythrough','playing','waiting','stalled','suspend','abort','error','seeking','seeked','ended'].forEach(function(n){v.addEventListener(n,function(){lastEv=n})});
     setInterval(function(){
       var b='';try{for(var i=0;i<v.buffered.length;i++)b+=v.buffered.start(i).toFixed(0)+'-'+v.buffered.end(i).toFixed(0)+' '}catch(e){}
-      hud.textContent='rs='+v.readyState+' ns='+v.networkState+' t='+v.currentTime.toFixed(1)+'/'+(v.duration||0).toFixed(0)+' buf='+b+' err='+(v.error?v.error.code:'-')+' ev='+lastEv+' rt='+retries;
+      hud.textContent=VP_VER+' rs='+v.readyState+' ns='+v.networkState+' t='+v.currentTime.toFixed(1)+'/'+(v.duration||0).toFixed(0)+' buf='+b+' err='+(v.error?v.error.code:'-')+' ev='+lastEv+' rt='+retries;
     },500);
   }
 
