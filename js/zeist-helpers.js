@@ -46,7 +46,7 @@ var timeString = function(t) {
   const postConfig = {
     manga: {
       id: 'myManga',
-      items: ['Manga','Manhwa','Manhua','WN','LN','Doujin'],
+      items: ['Manga','Manhwa','Manhua','WN','LN','Doujin','Anime'],
       subItems: ['Chapter']
     },
     novel: {
@@ -103,7 +103,7 @@ var timeString = function(t) {
           var blogIdMatch = id && id.$t ? id.$t.match(/blog-(\d+)/) : null;
           var blogId = blogIdMatch ? blogIdMatch[1] : window.LO_BLOG_ID || "";
           if (!window.LO_BLOG_ID && blogId) window.LO_BLOG_ID = blogId;
-          if(this.mainItem.some(t => s.includes(t))) {
+          if(!s.includes('Chapter') && this.mainItem.some(t => s.includes(t))) {
             this.mainItemArr.push({title:a, link:u, image:m, category:s, seriesPublishedRaw:published.$t, uploader:uploaderName, isNsfw: rawLabels.includes('NSFW'), postId: postId});
           }
   
@@ -174,7 +174,7 @@ var timeString = function(t) {
   
             // Type label
             var typ = "", label2 = r.find(i => 
-              ["Manga","Manhua","Manhwa","Novel","WN","LN","Doujin","Game"].includes(i)
+              ["Manga","Manhua","Manhwa","Novel","WN","LN","Doujin","Anime","Game"].includes(i)
             );
             if(label2) {
               typ = `<span class='absolute rounded top-1 end-1 text-xs px-1.5 ${label2.toLowerCase()}'>${label2}</span>`;
@@ -494,7 +494,7 @@ var timeString = function(t) {
         var pending = labels.length, all = {};
         var EXC = ['Project','Lock','Free','pw','NSFW','Chapter','ID','JP','EN','KR','CN','New','Series','End','Fix',
           'Ongoing','Completed','Complete','Hiatus','Dropped','Tamat','Berjalan',
-          'Manga','Manhwa','Manhua','WN','LN','Doujin','Novel','Game',
+          'Manga','Manhwa','Manhua','WN','LN','Doujin','Novel','Anime','Game',
           'Action','Adventure','Comedy','Demons','Drama','Ecchi','Fantasy','Gore','Harem','Historical','Horror','Isekai','Josei','Magic','Martial Arts','Mecha','Military','Music','Mystery','Psychological','Romance','Romcom','School','School Life','Sci-Fi','Seinen','Shoujo','Shoujo Ai','Shounen','Shounen Ai','Slice of Life','Sports','Super Power','Supernatural','Survival','Thriller','Tragedy','Vampire'];
         function terms(en) { return (en.category || []).map(function(c){ return c.term; }); }
         function sorted() {
