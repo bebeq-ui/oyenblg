@@ -117,7 +117,11 @@
         return;
       }
 
+      var _authHandled = false;
       waitForAuth(function (user) {
+        // Pengaman: satu pemanggilan initLockedReader hanya boleh memulai fetch sekali
+        if (_authHandled) return;
+        _authHandled = true;
         if (!user) { showGate(el); return; }
 
         user.getIdToken(false).then(function (idToken) {
@@ -375,7 +379,10 @@
       // normal (/content, sama seperti chapter Lock biasa), TIDAK perlu password sama sekali.
       // Kalau BELUM LOGIN -> tampilkan popup login dulu (mirip Lock,Free), gate
       // password baru muncul setelah user login.
+      var _pwAuthHandled = false;
       waitForAuth(function (user) {
+        if (_pwAuthHandled) return;
+        _pwAuthHandled = true;
         if (!user) {
           if (typeof window.openLockPopup === 'function') {
             window.openLockPopup(el.getAttribute('data-post-title') || 'Chapter ini');
@@ -696,20 +703,21 @@
         cb(fb.auth.currentUser);
         return;
       }
-      // Belum resolve — tunggu event onAuthStateChanged sekali
-      var unsub = fb.auth.onAuthStateChanged(function(user) {
-        unsub(); // unsubscribe setelah terpanggil pertama kali
+      // Belum resolve — tunggu event onAuthStateChanged sekali.
+      // FIX: callback HANYA boleh dipanggil satu kali. Sebelumnya safety timeout
+      // 10 detik tetap jalan walau auth sudah resolve, sehingga cb terpanggil 2x
+      // dan chapter di-render ulang di tengah jalan (glitch "muat ulang").
+      var _called = false, _timeoutId = null, unsub = null;
+      function once(user) {
+        if (_called) return;
+        _called = true;
+        if (_timeoutId) clearTimeout(_timeoutId);
+        try { if (unsub) unsub(); } catch(e) {}
         cb(user);
-      });
+      }
+      unsub = fb.auth.onAuthStateChanged(function(user) { once(user); });
       // Safety timeout 10 detik — jangan sampai nunggu selamanya
-      setTimeout(function() {
-        try { unsub(); } catch(e) {}
-        if (fb.auth.currentUser !== null) {
-          cb(fb.auth.currentUser);
-        } else {
-          cb(null);
-        }
-      }, 10000);
+      _timeoutId = setTimeout(function() { once(fb.auth.currentUser); }, 10000);
     }
 
     
